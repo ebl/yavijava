@@ -158,14 +158,14 @@ public class Task extends ExtensibleManagedObject {
     public String waitForTask(int runningDelayInMillSecond, int queuedDelayInMillSecond) throws RuntimeFault, RemoteException, InterruptedException {
         TaskInfoState tState = null;
         int tries = 0;
-        int maxTries = 3;
+        int maxTries = 50;
         Exception getInfoException = null;
 
         while ((tState == null) || tState.equals(TaskInfoState.running) || tState.equals(TaskInfoState.queued)) {
             tState = null;
             getInfoException = null;
             tries = 0;
-            // under load getTaskInfo may return null when there really is valid task info, so we try 3 times to get it.
+            // under load getTaskInfo may return null when there really is valid task info, so we try X times to get it.
             while (tState == null) {
                 tries++;
                 if (tries > maxTries) {
@@ -189,14 +189,15 @@ public class Task extends ExtensibleManagedObject {
                 catch (Exception e) {
                     //silently catch 3 exceptions
                     getInfoException = e;
+                    // give a bit of time before to retry to get the status
+                    Thread.sleep(queuedDelayInMillSecond);
                 }
             }
 
             // sleep for a specified time based on task state.
             if (tState.equals(TaskInfoState.running)) {
                 Thread.sleep(runningDelayInMillSecond);
-            }
-            else {
+            } else if (tState.equals(TaskInfoState.queued)) {
                 Thread.sleep(queuedDelayInMillSecond);
             }
         }
